@@ -1,5 +1,5 @@
 # GANs
-Duke University ECE 661 Final Project.
+Duke University course
 
 Implementations of traditional Generative Adversarial Networks, wrapped in a multimodality inspired engine.
 
