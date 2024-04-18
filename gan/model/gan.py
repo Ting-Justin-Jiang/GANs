@@ -14,6 +14,7 @@ from typing import Optional, Tuple
 from tqdm import tqdm
 
 from .loss import WassersteinGANLossGPDiscriminator, R1, DRAGANLossDiscriminator, RLC
+from .data import *
 
 
 class GANEngine(object):
@@ -32,9 +33,11 @@ class GANEngine(object):
                  regularization_loss: Optional[nn.Module] = None) -> None:
 
         # Save parameters
-        self.steps: int = 0
         self.config: dict = config
+        self.steps: int = 0
+        self.z_samples: torch.tensor = torch.randn(100, self.config["z_dim"]).cuda()
         self.dataloader: torch.utils = None
+
         self.generator: nn.Module = generator
         self.discriminator: nn.Module = discriminator
         self.generator_optimizer: torch.optim.Optimizer = generator_optimizer
@@ -71,10 +74,10 @@ class GANEngine(object):
             ])
             os.makedirs('data', exist_ok=True)
             dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
-            self.dataloader = DataLoader(dataset, batch_size=128, shuffle=True, num_workers=2)
-        else:
-            # todo custom dataset
-            ...
+            self.dataloader = DataLoader(dataset, batch_size=self.config['batch_size'], shuffle=True, num_workers=4)
+        elif self.config['dataset'] == "Crypko":
+            dataset = get_dataset(os.path.join(self.config["data_dir"], 'faces'))
+            self.dataloader = DataLoader(dataset, batch_size=self.config["batch_size"], shuffle=True, num_workers=4)
 
         # model preparation
         if torch.cuda.is_available():
@@ -89,7 +92,10 @@ class GANEngine(object):
             progress_bar = tqdm(self.dataloader)
             progress_bar.set_description(f"Epoch {e + 1}")
             for i, data in enumerate(progress_bar):
-                imgs = data[0].cuda()
+                if self.config["dataset"] == "CIFAR10":
+                    imgs = data[0].cuda()
+                else:
+                    imgs = data.cuda()
                 bs = imgs.size(0)
 
                 # *    Train D        *
@@ -108,26 +114,9 @@ class GANEngine(object):
                 r_logit = self.discriminator(r_imgs)
                 f_logit = self.discriminator(f_imgs)
 
-                # Regularization term
-                if self.regularization_loss is not None:
-                    if isinstance(self.regularization_loss, R1):
-                        discriminator_loss: torch.Tensor = self.regularization_loss(
-                            r_logit, r_imgs)
-
-                    elif isinstance(self.regularization_loss, RLC):
-                        discriminator_loss: torch.Tensor = self.regularization_loss(
-                            r_logit, f_logit
-                        )
-                    else:
-                        discriminator_loss: torch.Tensor = self.regularization_loss(
-                            f_logit, f_imgs
-                        )
-                else:
-                    discriminator_loss = torch.zeros(1).cuda()
-
                 # Compute loss
                 if isinstance(self.discriminator_loss_function, WassersteinGANLossGPDiscriminator):
-                    discriminator_loss: torch.Tensor = discriminator_loss + self.discriminator_loss_function(
+                    discriminator_loss: torch.Tensor = self.discriminator_loss_function(
                         r_logit, f_logit,
                         r_label, f_label,
                         self.discriminator,
@@ -135,13 +124,13 @@ class GANEngine(object):
                     )
 
                 elif isinstance(self.discriminator_loss_function, DRAGANLossDiscriminator):
-                    discriminator_loss: torch.Tensor = discriminator_loss + self.discriminator_loss_function(
+                    discriminator_loss: torch.Tensor = self.discriminator_loss_function(
                         r_logit, f_logit,
                         r_label, f_label,
                         r_imgs, self.discriminator
                     )
                 else:
-                    discriminator_loss: torch.Tensor = discriminator_loss + self.discriminator_loss_function(
+                    discriminator_loss: torch.Tensor = self.discriminator_loss_function(
                         r_logit, f_logit,
                         r_label, f_label
                     )
@@ -179,9 +168,8 @@ class GANEngine(object):
 
             # Evaluate generator
             self.generator.eval()
-            z_samples = torch.randn(100, self.config["z_dim"]).cuda()
 
-            f_imgs_sample = (self.generator(z_samples).data + 1) / 2.0
+            f_imgs_sample = (self.generator(self.z_samples).data + 1) / 2.0
             filename = os.path.join(self.config['log_dir'], f'Epoch_{epoch + 1:03d}.jpg')
             torchvision.utils.save_image(f_imgs_sample, filename, nrow=10)
             # logging.info(f'Save some samples to {filename}.')
