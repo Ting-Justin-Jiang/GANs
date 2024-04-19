@@ -41,7 +41,7 @@ def main(config):
     # Initialize models
     if version_dict['base'] == "DC":
         generator = Generator(in_dim=config["z_dim"], feature_dim=config["image_size"]).to(device)
-        discriminator = Discriminator(in_dim=3, feature_dim=config["image_size"]).to(device)
+        discriminator = Discriminator(in_dim=3, feature_dim=config["image_size"], is_critic=version_dict["is_critic"]).to(device)
     else:
         return
 
@@ -49,7 +49,7 @@ def main(config):
     if version_dict['optimizer'] == "Adam":
         generator_optimizer = optim.Adam(generator.parameters(), lr=config["lr_generator"], betas=(config["beta1"], 0.999))
         discriminator_optimizer = optim.Adam(discriminator.parameters(), lr=config["lr_discriminator"], betas=(config["beta1"], 0.999))
-    elif version_dict['optimizer'] == "RMSProp":
+    elif version_dict['optimizer'] == "RMSProp" and config['model_type'] == "WGAN":
         generator_optimizer = optim.RMSprop(generator.parameters(), lr=config["lr_generator"])
         discriminator_optimizer = optim.RMSprop(discriminator.parameters(), lr=config["lr_discriminator"])
     else:
@@ -75,18 +75,19 @@ def main(config):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_type", choices=VERSION.keys(), default="GAN")
+    parser.add_argument("--model_type", choices=VERSION.keys(), default="WGAN-GP")
     parser.add_argument("--image_size", type=int, default=64)
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--z_dim", type=int, default=100)
     parser.add_argument("--n_epoch", type=int, default=50)
     parser.add_argument("--dataset", type=str, default="Crypko", choices=["CIFAR10", "Crypko"])
-    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--seed", type=int, default=2022)
 
-    parser.add_argument("--lr_generator", type=float, default=0.0002)
-    parser.add_argument("--lr_discriminator", type=float, default=0.0002)
+    parser.add_argument("--lr_generator", type=float, default=1e-4)
+    parser.add_argument("--lr_discriminator", type=float, default=1e-4)
     parser.add_argument("--beta1", type=float, default=0.5)
     parser.add_argument("--n_critic", type=int, default=2)
+    parser.add_argument("--clip_value", type=int, default=1)  # only for WGAN, this will be checked
 
     parser.add_argument("--log_dir", type=str, default="./logs")
     parser.add_argument("--ckpt_dir", type=str, default="./checkpoints")
@@ -95,5 +96,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     config = vars(args)
 
-    same_seeds(3407)  # is all you need
+    same_seeds(config['seed'])
     main(config)
