@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from typing import Optional, Tuple
 from tqdm import tqdm
 
-from .loss import WassersteinGANLossGPDiscriminator, R1, DRAGANLossDiscriminator, RLC
+from .loss import *
 from .data import *
 
 
@@ -87,7 +87,7 @@ class GANEngine(object):
         self.generator.train()
         self.discriminator.train()
 
-    def train(self, instance_noise=True) -> None:
+    def train(self) -> None:
         for e, epoch in enumerate(range(self.config["n_epoch"])):
             progress_bar = tqdm(self.dataloader)
             progress_bar.set_description(f"Epoch {e + 1}")
@@ -99,10 +99,6 @@ class GANEngine(object):
                 bs = imgs.size(0)
 
                 # *    Train D        *
-                # Reset gradients
-                self.generator_optimizer.zero_grad()
-                self.discriminator_optimizer.zero_grad()
-
                 # Sample generation
                 z = torch.randn(bs, self.config["z_dim"]).cuda()
                 r_imgs = imgs.cuda()
@@ -117,35 +113,31 @@ class GANEngine(object):
                 # Compute loss
                 if isinstance(self.discriminator_loss_function, WassersteinGANLossGPDiscriminator):
                     discriminator_loss: torch.Tensor = self.discriminator_loss_function(
-                        r_logit, f_logit,
+                        r_imgs, f_imgs,
                         r_label, f_label,
-                        self.discriminator,
-                        r_imgs, f_imgs
-                    )
-
-                elif isinstance(self.discriminator_loss_function, DRAGANLossDiscriminator):
-                    discriminator_loss: torch.Tensor = self.discriminator_loss_function(
                         r_logit, f_logit,
-                        r_label, f_label,
-                        r_imgs, self.discriminator
+                        self.discriminator
                     )
                 else:
                     discriminator_loss: torch.Tensor = self.discriminator_loss_function(
-                        r_logit, f_logit,
-                        r_label, f_label
+                        r_imgs, f_imgs,
+                        r_label, f_label,
+                        r_logit, f_logit
                     )
 
-                # Compute gradients
+                # discriminator_loss = -torch.mean(r_logit) + torch.mean(f_logit)
+
+                self.discriminator_optimizer.zero_grad()
                 discriminator_loss.backward()
-                # Perform optimization
                 self.discriminator_optimizer.step()
+
+                if self.config["model_type"] == "WGAN":
+                    for p in self.discriminator.parameters():
+                        p.data.clamp_(-self.config["clip_value"], self.config["clip_value"])
 
                 # *    Train G        *
                 # Reset gradients
                 if self.steps % self.config["n_critic"] == 0:
-                    self.generator_optimizer.zero_grad()
-                    self.discriminator_optimizer.zero_grad()
-
                     # Generate some fake images.
                     z = torch.randn(bs, self.config["z_dim"]).cuda()
                     f_imgs = self.generator(z)
@@ -154,11 +146,15 @@ class GANEngine(object):
                     f_logit = self.discriminator(f_imgs)
 
                     # Compute generator loss
-                    generator_loss: torch.Tensor = self.generator_loss_function(f_logit, r_label)
+                    if isinstance(self.generator_loss_function, WassersteinGANLossGenerator):
+                        generator_loss: torch.Tensor = self.generator_loss_function(f_imgs, self.discriminator)
+                    else:
+                        generator_loss: torch.Tensor = self.generator_loss_function(r_label, f_logit)
 
-                    # Compute gradients
+                    # generator_loss = -torch.mean(self.discriminator(f_imgs))
+
+                    self.generator_optimizer.zero_grad()
                     generator_loss.backward()
-                    # Perform optimization
                     self.generator_optimizer.step()
 
                 if self.steps % 10 == 0:
@@ -188,3 +184,21 @@ class GANEngine(object):
                 torch.save(self.discriminator.state_dict(), os.path.join(self.config['ckpt_dir'], f'D_{e}.pth'))
 
         logging.info("Finish training")
+
+    def inference(self, generator_path, n_generate=1000, n_output=30, show=False):
+        self.generator.load_state_dict(torch.load(generator_path))
+        self.generator.cuda()
+        self.generator.eval()
+        z = torch.randn(n_generate, self.config["z_dim"]).cuda()
+        imgs = (self.generator(z).data + 1) / 2.0
+
+        os.makedirs('output', exist_ok=True)
+        for i in range(n_generate):
+            torchvision.utils.save_image(imgs[i], f'output/{i + 1}.jpg')
+
+        if show:
+            row, col = n_output // 10 + 1, 10
+            grid_img = torchvision.utils.make_grid(imgs[:n_output].cpu(), nrow=row)
+            plt.figure(figsize=(row, col))
+            plt.imshow(grid_img.permute(1, 2, 0))
+            plt.show()

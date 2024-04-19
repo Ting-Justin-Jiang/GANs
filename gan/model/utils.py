@@ -5,17 +5,27 @@ from torch.nn import functional as F
 
 
 def same_seeds(seed):
-    # Python built-in random module
     random.seed(seed)
-    # Numpy
     np.random.seed(seed)
-    # Torch
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
+
+
+def compute_cosine_similarity(features1, features2):
+    """
+    Compute the cosine similarity between two sets of features.
+    """
+    # Normalize the feature vectors
+    features1_norm = F.normalize(features1, p=2, dim=1)
+    features2_norm = F.normalize(features2, p=2, dim=1)
+
+    # Compute the cosine similarity
+    similarity_matrix = torch.mm(features1_norm, features2_norm.t())
+    return similarity_matrix
 
 
 def flip_labels_for_generator(target_real):
@@ -72,16 +82,3 @@ def extract_features(model, dataloader, device, num_samples=100):
     features = torch.cat(features, 0)
     features = features[:num_samples]
     return features
-
-
-def compute_cosine_similarity(features1, features2):
-    """
-    Compute the cosine similarity between two sets of features.
-    """
-    # Normalize the feature vectors
-    features1_norm = F.normalize(features1, p=2, dim=1)
-    features2_norm = F.normalize(features2, p=2, dim=1)
-
-    # Compute the cosine similarity
-    similarity_matrix = torch.mm(features1_norm, features2_norm.t())
-    return similarity_matrix
