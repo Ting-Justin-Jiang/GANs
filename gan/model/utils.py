@@ -15,6 +15,20 @@ def same_seeds(seed):
     torch.backends.cudnn.deterministic = True
 
 
+def latent_interpolation(num_points, latent_dim, device='cpu'):
+    """
+    Generates interpolated latent vectors between two random points in the latent space.
+    """
+    z0 = torch.randn(1, latent_dim).to(device)
+    z1 = torch.randn(1, latent_dim).to(device)
+    alphas = torch.linspace(0, 1, steps=num_points).to(device).view(-1, 1)
+
+    # Linear interpolation
+    z = alphas * z0 + (1 - alphas) * z1  # Broadcast alphas across the latent dimension
+
+    return z
+
+
 def compute_cosine_similarity(features1, features2):
     """
     Compute the cosine similarity between two sets of features.
