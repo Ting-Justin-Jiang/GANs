@@ -15,7 +15,7 @@ def weights_init(m):
 
 class Generator(nn.Module):
     """
-    Implementation of DC GAN Generator
+    Implementation of GAN Generator
     """
     def __init__(self, in_dim, feature_dim=64):
         super(Generator, self).__init__()
@@ -56,7 +56,7 @@ class Generator(nn.Module):
 
 class Discriminator(nn.Module):
     """
-    Implementation of DC GAN Discriminator
+    Implementation of GAN Discriminator
     """
     def __init__(self, in_dim, feature_dim=64, is_critic=False):
         super(Discriminator, self).__init__()

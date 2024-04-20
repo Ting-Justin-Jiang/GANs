@@ -5,7 +5,6 @@ import torch.optim as optim
 from gan.model import GANEngine
 from gan.model.loss import *
 from gan.module import Discriminator, Generator
-
 from gan.model.utils import same_seeds
 
 VERSION = {
@@ -42,6 +41,8 @@ def main(config):
     if version_dict['base'] == "DC":
         generator = Generator(in_dim=config["z_dim"], feature_dim=config["image_size"]).to(device)
         discriminator = Discriminator(in_dim=3, feature_dim=config["image_size"], is_critic=version_dict["is_critic"]).to(device)
+        print(f"Generator class: {generator.__class__.__name__}")
+        print(f"Discriminator class: {discriminator.__class__.__name__}")
     else:
         return
 
@@ -54,10 +55,14 @@ def main(config):
         discriminator_optimizer = optim.RMSprop(discriminator.parameters(), lr=config["lr_discriminator"])
     else:
         return
+    print(f"Generator Optimizer class: {generator_optimizer.__class__.__name__}")
+    print(f"Discriminator Optimizer class: {discriminator_optimizer.__class__.__name__}")
 
     # Loss functions
     generator_loss_function = version_dict['generator_loss_function']
     discriminator_loss_function = version_dict['discriminator_loss_function']
+    print(f"Generator Loss Function class: {type(generator_loss_function).__name__}")
+    print(f"Discriminator Loss Function class: {type(discriminator_loss_function).__name__}")
 
     # Initialize GANEngine
     gan_engine = GANEngine(config=config,
@@ -81,7 +86,7 @@ if __name__ == "__main__":
     parser.add_argument("--z_dim", type=int, default=100)
     parser.add_argument("--n_epoch", type=int, default=50)
     parser.add_argument("--dataset", type=str, default="Crypko", choices=["CIFAR10", "Crypko"])
-    parser.add_argument("--seed", type=int, default=2022)
+    parser.add_argument("--seed", type=int, default=2024)
 
     parser.add_argument("--lr_generator", type=float, default=1e-4)
     parser.add_argument("--lr_discriminator", type=float, default=1e-4)
