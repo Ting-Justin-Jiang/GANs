@@ -21,11 +21,13 @@ def latent_interpolation(num_points, latent_dim, device='cpu'):
     """
     z0 = torch.randn(1, latent_dim).to(device)
     z1 = torch.randn(1, latent_dim).to(device)
+
+    # Generate interpolation coefficients
     alphas = torch.linspace(0, 1, steps=num_points).to(device).view(-1, 1)
 
-    # Linear interpolation
-    z = alphas * z0 + (1 - alphas) * z1  # Broadcast alphas across the latent dimension
-
+    # Perform linear interpolation
+    z = alphas * z0 + (1 - alphas) * z1
+    z = z.view(num_points, latent_dim)
     return z
 
 
