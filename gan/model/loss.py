@@ -9,7 +9,6 @@ class GANLossGenerator(nn.Module):
         self.loss = nn.BCELoss()
 
     def forward(self, r_label, f_logit):
-        # The labels should be the same shape as f_logit, and generally expects 1s for true labels
         return self.loss(f_logit, r_label)
 
 
@@ -45,25 +44,14 @@ class WassersteinGANLossDiscriminator(nn.Module):
         return loss
 
 
-class ACGANLossGenerator(nn.Module):
-    pass
-
-
-class ACGANLossDiscriminator(nn.Module):
-    pass
-
-
 class WassersteinGANLossGPDiscriminator(nn.Module):
     def __init__(self):
         super(WassersteinGANLossGPDiscriminator, self).__init__()
 
     def gp(self, r_imgs, f_imgs, discriminator):
-        # Assuming self.D is the discriminator network
         alpha = torch.rand((r_imgs.size(0), 1, 1, 1), dtype=torch.float32, device='cuda')
         interpolates = (alpha * r_imgs + (1 - alpha) * f_imgs).requires_grad_(True)
         d_interpolates = discriminator(interpolates)
-
-        # Create gradient outputs tensor
         grad_outputs = torch.ones(d_interpolates.size(), device=r_imgs.device, requires_grad=False)
 
         # Calculate gradients
@@ -85,10 +73,6 @@ class WassersteinGANLossGPDiscriminator(nn.Module):
         gradient_penalty = self.gp(r_imgs, f_imgs, discriminator)
         loss = -torch.mean(r_logit) + torch.mean(f_logit) + gradient_penalty
         return loss
-
-
-class DRAGANLossDiscriminator(nn.Module):
-    pass
 
 
 class R1(nn.Module):

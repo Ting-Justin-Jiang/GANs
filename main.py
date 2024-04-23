@@ -4,7 +4,7 @@ import torch.optim as optim
 
 from gan.model import GANEngine
 from gan.model.loss import *
-from gan.module import Discriminator, Generator
+from gan.module import Discriminator, Generator, ResNetGenerator, ResNetDiscriminator
 from gan.model.utils import same_seeds
 
 VERSION = {
@@ -28,6 +28,13 @@ VERSION = {
         'generator_loss_function': WassersteinGANLossGenerator(),
         'discriminator_loss_function': WassersteinGANLossGPDiscriminator(),
         'is_critic': True
+    },
+    'WGAN-GP-ResNet': {
+        'base': "ResNet",
+        'optimizer': "Adam",
+        'generator_loss_function': WassersteinGANLossGenerator(),
+        'discriminator_loss_function': WassersteinGANLossGPDiscriminator(),
+        'is_critic': True
     }
 }
 
@@ -41,6 +48,11 @@ def main(config):
     if version_dict['base'] == "DC":
         generator = Generator(in_dim=config["z_dim"], feature_dim=config["image_size"]).to(device)
         discriminator = Discriminator(in_dim=3, feature_dim=config["image_size"], is_critic=version_dict["is_critic"]).to(device)
+        print(f"Generator class: {generator.__class__.__name__}")
+        print(f"Discriminator class: {discriminator.__class__.__name__}")
+    elif version_dict['base'] == "ResNet":
+        generator = ResNetGenerator(in_dim=config["z_dim"], feature_dim=config["image_size"]).to(device)
+        discriminator = ResNetDiscriminator(in_dim=3, feature_dim=config["image_size"], is_critic=version_dict["is_critic"]).to(device)
         print(f"Generator class: {generator.__class__.__name__}")
         print(f"Discriminator class: {discriminator.__class__.__name__}")
     else:
@@ -80,11 +92,11 @@ def main(config):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_type", choices=VERSION.keys(), default="WGAN-GP")
+    parser.add_argument("--model_type", choices=VERSION.keys(), default="WGAN-GP-ResNet")
     parser.add_argument("--image_size", type=int, default=64)
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--z_dim", type=int, default=100)
-    parser.add_argument("--n_epoch", type=int, default=50)
+    parser.add_argument("--n_epoch", type=int, default=100)
     parser.add_argument("--dataset", type=str, default="Crypko", choices=["CIFAR10", "Crypko"])
     parser.add_argument("--seed", type=int, default=2024)
 
@@ -92,7 +104,7 @@ if __name__ == "__main__":
     parser.add_argument("--lr_discriminator", type=float, default=1e-4)
     parser.add_argument("--beta1", type=float, default=0.5)
     parser.add_argument("--n_critic", type=int, default=2)
-    parser.add_argument("--clip_value", type=int, default=1)  # only for WGAN, this will be checked
+    parser.add_argument("--clip_value", type=float, default=1)  # only for WGAN, this will be checked
 
     parser.add_argument("--log_dir", type=str, default="./logs")
     parser.add_argument("--ckpt_dir", type=str, default="./checkpoints")
