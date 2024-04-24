@@ -92,11 +92,11 @@ def main(config):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_type", choices=VERSION.keys(), default="WGAN-GP-ResNet")
+    parser.add_argument("--model_type", choices=VERSION.keys(), default="WGAN-GP")
     parser.add_argument("--image_size", type=int, default=64)
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--z_dim", type=int, default=100)
-    parser.add_argument("--n_epoch", type=int, default=100)
+    parser.add_argument("--n_epoch", type=int, default=50)
     parser.add_argument("--dataset", type=str, default="Crypko", choices=["CIFAR10", "Crypko"])
     parser.add_argument("--seed", type=int, default=2024)
 
@@ -104,11 +104,12 @@ if __name__ == "__main__":
     parser.add_argument("--lr_discriminator", type=float, default=1e-4)
     parser.add_argument("--beta1", type=float, default=0.5)
     parser.add_argument("--n_critic", type=int, default=2)
-    parser.add_argument("--clip_value", type=float, default=1)  # only for WGAN, this will be checked
+    parser.add_argument("--clip_value", type=float, default=0.01)  # only for WGAN, this will be checked
 
     parser.add_argument("--log_dir", type=str, default="./logs")
     parser.add_argument("--ckpt_dir", type=str, default="./checkpoints")
     parser.add_argument("--data_dir", type=str, default="./data")
+    parser.add_argument("--run_dir", type=str, default="./runs")
 
     args = parser.parse_args()
     config = vars(args)
